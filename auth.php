@@ -13,6 +13,8 @@ session_start();
 //    no existe y evita incluirlo dos veces. Deja disponible la variable $conexion.
 require_once 'includes/conexion.php';
 
+/** @var mysqli $conexion */
+
 // 3. Seguridad: este archivo solo debe responder a envíos POST del formulario.
 //    Si alguien lo abre escribiendo la URL (método GET), se le devuelve al login.
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -36,7 +38,7 @@ if ($correo === '' || $password === '') {
 //    - El JOIN une ambas tablas por id_rol para obtener nombre_rol.
 //    - El signo ? es un marcador: el dato del usuario NUNCA se pega al SQL,
 //      lo que evita la inyección SQL.
-$sql = "SELECT u.id_usuario, u.nombres, u.password, r.nombre_rol
+$sql = "SELECT u.id_usuario, u.nombres, u.password, u.id_rol, r.nombre_rol
         FROM usuarios u
         INNER JOIN roles r ON u.id_rol = r.id_rol
         WHERE u.correo = ?
@@ -55,8 +57,9 @@ mysqli_stmt_execute($stmt);
 $id_usuario    = 0;
 $nombres       = '';
 $hash_guardado = '';
+$id_rol        = 0;
 $nombre_rol    = '';
-mysqli_stmt_bind_result($stmt, $id_usuario, $nombres, $hash_guardado, $nombre_rol);
+mysqli_stmt_bind_result($stmt, $id_usuario, $nombres, $hash_guardado, $id_rol, $nombre_rol);
 
 // 11. Obtiene la fila. mysqli_stmt_fetch devuelve true si hubo un resultado
 //     (el correo existe) y llena las variables del paso anterior.
@@ -77,9 +80,11 @@ if ($existe && !empty($hash_guardado) && password_verify($password, (string)$has
 
     // 15. Guarda en la sesión los datos del usuario. Otras páginas los leerán
     //     para saber quién está conectado y qué permisos tiene (Administrador/Vendedor).
+    $_SESSION['id']         = $id_usuario; // usado por includes/navbar.php
     $_SESSION['id_usuario'] = $id_usuario;
     $_SESSION['nombres']    = $nombres;
-    $_SESSION['rol']        = $nombre_rol;
+    $_SESSION['rol']        = $id_rol;      // numérico: 1 = Administrador, 2 = Vendedor
+    $_SESSION['rol_nombre'] = $nombre_rol; // texto para mostrar en pantalla
 
     // 16. Login correcto: redirige al panel principal.
     header("Location: index.php");

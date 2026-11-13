@@ -9,6 +9,8 @@
 // 1. Incluimos el archivo de conexión a la base de datos (nos provee $conexion)
 require_once 'includes/conexion.php';
 
+/** @var mysqli $conexion */
+
 try {
     // 2. Nos aseguramos de que existan los roles 1 (Administrador) y 2 (Vendedor)
     //    usando INSERT IGNORE por si la tabla 'roles' aún estuviera vacía.

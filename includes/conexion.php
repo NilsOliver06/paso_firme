@@ -18,6 +18,7 @@ try {
     mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
     // Función procedural para abrir una nueva conexión al servidor MySQL
+    /** @var mysqli $conexion */
     $conexion = mysqli_connect($servidor, $usuario, $password, $base_datos);
 
     // Verificación manual adicional del estado de la conexión mediante mysqli_connect_error()
