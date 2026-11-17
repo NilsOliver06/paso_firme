@@ -39,8 +39,15 @@ $nav_rol    = $es_admin ? 'Administrador' : 'Vendedor';
                 Sistema Calzados
             </span>
 
+            <!-- Enlace "Catálogo": visible para todos los roles -->
+            <a href="/paso_firme/modelos/index.php"
+               class="text-sm font-bold uppercase tracking-wide text-neutral-800 hover:text-black px-2 py-2 transition">
+                Catálogo
+            </a>
+
+            <?php if ($_SESSION['rol'] == 1): ?>
             <!--
-              MENÚ DESPLEGABLE "FUNCIONES":
+              MENÚ DESPLEGABLE "FUNCIONES" (solo Administrador):
               - relative : referencia de posición para el menú absoluto
               - group    : permite que los hijos reaccionen con group-hover
             -->
@@ -61,16 +68,18 @@ $nav_rol    = $es_admin ? 'Administrador' : 'Vendedor';
                     <div class="bg-white border border-neutral-200 rounded-xl shadow-lg overflow-hidden py-1">
                         <a href="/paso_firme/inventario/index.php"
                            class="block px-4 py-3 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-black transition">
-                            Inventario
+                            Gestión de Inventario
                         </a>
 
-                        <?php if ($_SESSION['rol'] == 1): ?>
-                            <!-- Solo el Administrador ve "Usuarios" -->
-                            <a href="/paso_firme/usuarios/index.php"
-                               class="block px-4 py-3 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-black transition">
-                                Usuarios
-                            </a>
-                        <?php endif; ?>
+                        <a href="/paso_firme/modelos/index.php"
+                           class="block px-4 py-3 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-black transition">
+                            Gestión de Modelos
+                        </a>
+
+                        <a href="/paso_firme/usuarios/index.php"
+                           class="block px-4 py-3 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-black transition">
+                            Gestión de Usuarios
+                        </a>
 
                         <a href="/paso_firme/ventas/index.php"
                            class="block px-4 py-3 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-black transition">
@@ -79,6 +88,7 @@ $nav_rol    = $es_admin ? 'Administrador' : 'Vendedor';
                     </div>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
 
         <!-- ================= DERECHA ================= -->
