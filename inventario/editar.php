@@ -1,8 +1,11 @@
 <?php
 // ==============================================================================
 // ARCHIVO: inventario/editar.php
-// DESCRIPCIÓN: Edita un registro de inventario (modelo, talla, color, stock).
-//              El ID se muestra en un campo de solo lectura. Solo Administrador.
+// DESCRIPCIÓN: Edita simultáneamente DOS tablas desde un solo formulario:
+//   - inventario: talla, color y stock del registro
+//   - modelos   : precio_venta y url_imagen del modelo asociado
+//   El ID, el código y el nombre del modelo se muestran en solo lectura.
+//   Solo Administrador (rol 1).
 // ==============================================================================
 
 // 1. Inicia la sesión solo si aún no está activa
@@ -27,89 +30,103 @@ require_once '../includes/conexion.php';
 
 /** @var mysqli $conexion */
 
-// 5. Recibe el ID por GET y lo valida como entero positivo.
-//    El ID real SIEMPRE se toma de la URL, nunca del campo del formulario,
-//    así que aunque alguien modifique el input readonly, no cambia nada.
+// 5. Recibe el ID por GET y lo valida. El ID real SIEMPRE sale de la URL,
+//    nunca de un campo del formulario.
 $id = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT);
 if ($id === false || $id === null || $id <= 0) {
     header("Location: index.php");
     exit;
 }
 
+// 6. Consulta inicial con JOIN: datos de inventario + modelos (+ categoría para mostrarla)
+$stmt = mysqli_prepare($conexion,
+    "SELECT i.id_inventario, i.id_modelo, i.talla, i.color, i.stock_actual,
+            m.codigo_modelo, m.nombre, m.precio_venta, m.url_imagen, m.id_categoria,
+            c.nombre_categoria, c.publico
+     FROM inventario i
+     INNER JOIN modelos m    ON i.id_modelo = m.id_modelo
+     INNER JOIN categorias c ON m.id_categoria = c.id_categoria
+     WHERE i.id_inventario = ?");
+mysqli_stmt_bind_param($stmt, "i", $id);
+mysqli_stmt_execute($stmt);
+$registro = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
+mysqli_stmt_close($stmt);
+
+// Si el ID no existe, vuelve al listado
+if (!$registro) {
+    header("Location: index.php");
+    exit;
+}
+
 $error = '';
 
-// 6. PROCESAMIENTO DEL FORMULARIO (POST): UPDATE
+// 7. PROCESAMIENTO DEL FORMULARIO (POST)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $id_modelo = $_POST['id_modelo'] ?? '';
-    $talla     = trim($_POST['talla'] ?? '');
-    $color     = trim($_POST['color'] ?? '');
-    $stock     = $_POST['stock_actual'] ?? '';
+    $talla  = trim($_POST['talla'] ?? '');
+    $color  = trim($_POST['color'] ?? '');
+    $stock  = (string) ($_POST['stock_actual'] ?? '');
+    $precio = trim((string) ($_POST['precio_venta'] ?? ''));
+    $url    = trim($_POST['url_imagen'] ?? '');
+
+    // Valores escritos: se muestran de nuevo si hay error
+    $registro['talla']        = $talla;
+    $registro['color']        = $color;
+    $registro['stock_actual'] = $stock;
+    $registro['precio_venta'] = $precio;
+    $registro['url_imagen']   = $url;
 
     // Validaciones en el servidor
-    if (filter_var($id_modelo, FILTER_VALIDATE_INT) === false || (int) $id_modelo <= 0) {
-        $error = 'Selecciona un modelo válido.';
-    } elseif ($talla === '' || mb_strlen($talla) > 10) {
+    if ($talla === '' || mb_strlen($talla) > 10) {
         $error = 'La talla es obligatoria (máximo 10 caracteres).';
     } elseif ($color === '' || mb_strlen($color) > 50) {
         $error = 'El color es obligatorio (máximo 50 caracteres).';
     } elseif (filter_var($stock, FILTER_VALIDATE_INT) === false || (int) $stock < 0) {
         $error = 'El stock debe ser un número entero mayor o igual a 0.';
+    } elseif (!is_numeric($precio) || (float) $precio <= 0 || (float) $precio > 99999999.99) {
+        $error = 'El precio debe ser un número mayor a 0.';
+    } elseif ($url !== '' && (mb_strlen($url) > 255 || filter_var($url, FILTER_VALIDATE_URL) === false)) {
+        $error = 'La URL de la imagen no es válida (máximo 255 caracteres).';
     } else {
-        $id_modelo = (int) $id_modelo;
-        $stock     = (int) $stock;
+        $stock_int   = (int) $stock;
+        $precio_num  = round((float) $precio, 2);
+        $url_guardar = $url === '' ? null : $url;      // url_imagen es opcional
+        $id_modelo   = (int) $registro['id_modelo'];   // viene de la BD, no del formulario
 
-        // UPDATE preparado. El ID no se modifica: solo se usa en el WHERE.
-        $stmt = mysqli_prepare($conexion,
-            "UPDATE inventario SET id_modelo = ?, talla = ?, color = ?, stock_actual = ? WHERE id_inventario = ?");
-        // "issii" = integer, string, string, integer, integer
-        mysqli_stmt_bind_param($stmt, "issii", $id_modelo, $talla, $color, $stock, $id);
-
+        // TRANSACCIÓN: ambos UPDATE se aplican juntos o ninguno se aplica.
+        // Así evitamos dejar los datos a medias si el segundo UPDATE falla.
+        mysqli_begin_transaction($conexion);
         try {
-            mysqli_stmt_execute($stmt);
-            mysqli_stmt_close($stmt);
+            // UPDATE 1: tabla inventario (talla, color, stock). El ID solo va en el WHERE.
+            $stmt1 = mysqli_prepare($conexion,
+                "UPDATE inventario SET talla = ?, color = ?, stock_actual = ? WHERE id_inventario = ?");
+            // "ssii" = string, string, integer, integer
+            mysqli_stmt_bind_param($stmt1, "ssii", $talla, $color, $stock_int, $id);
+            mysqli_stmt_execute($stmt1);
+            mysqli_stmt_close($stmt1);
+
+            // UPDATE 2: tabla modelos (precio y url_imagen) del modelo asociado
+            $stmt2 = mysqli_prepare($conexion,
+                "UPDATE modelos SET precio_venta = ?, url_imagen = ? WHERE id_modelo = ?");
+            // "dsi" = double, string (acepta NULL), integer
+            mysqli_stmt_bind_param($stmt2, "dsi", $precio_num, $url_guardar, $id_modelo);
+            mysqli_stmt_execute($stmt2);
+            mysqli_stmt_close($stmt2);
+
+            // Todo salió bien: confirma los cambios
+            mysqli_commit($conexion);
             header("Location: index.php?msg=editado");
             exit;
         } catch (mysqli_sql_exception $e) {
-            $error = 'No se pudo actualizar el producto. Verifica los datos.';
+            // Algo falló: deshace TODO lo hecho dentro de la transacción
+            mysqli_rollback($conexion);
+            $error = 'No se pudo actualizar el producto. No se guardó ningún cambio.';
         }
-    }
-
-    // Si hubo error, se conservan los valores escritos
-    $registro = [
-        'id_inventario' => $id,
-        'id_modelo'     => $_POST['id_modelo'] ?? '',
-        'talla'         => $talla,
-        'color'         => $color,
-        'stock_actual'  => $_POST['stock_actual'] ?? '',
-    ];
-} else {
-    // 7. GET: consulta el registro actual para rellenar el formulario
-    $stmt = mysqli_prepare($conexion,
-        "SELECT id_inventario, id_modelo, talla, color, stock_actual FROM inventario WHERE id_inventario = ?");
-    mysqli_stmt_bind_param($stmt, "i", $id);
-    mysqli_stmt_execute($stmt);
-    $registro = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
-    mysqli_stmt_close($stmt);
-
-    // Si el ID no existe, vuelve al listado
-    if (!$registro) {
-        header("Location: index.php");
-        exit;
     }
 }
 
-// 8. Modelos para el <select>: los activos, más el modelo actual del registro
-//    (por si fue ocultado/descontinuado y debe seguir apareciendo)
-$id_modelo_actual = (int) $registro['id_modelo'];
-$stmt = mysqli_prepare($conexion,
-    "SELECT id_modelo, codigo_modelo, nombre FROM modelos WHERE estado_activo = 1 OR id_modelo = ? ORDER BY nombre ASC");
-mysqli_stmt_bind_param($stmt, "i", $id_modelo_actual);
-mysqli_stmt_execute($stmt);
-$modelos = mysqli_fetch_all(mysqli_stmt_get_result($stmt), MYSQLI_ASSOC);
-mysqli_stmt_close($stmt);
-
 // Clases Tailwind compartidas
 $clase_input = "w-full px-4 py-3 bg-white border border-neutral-300 rounded-xl text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition";
+$clase_ro    = "w-full px-4 py-3 bg-neutral-100 border border-neutral-200 rounded-xl text-sm text-neutral-500 cursor-not-allowed focus:outline-none";
 $clase_label = "block text-xs font-semibold uppercase tracking-wide text-neutral-700 mb-2";
 ?>
 <!DOCTYPE html>
@@ -136,50 +153,74 @@ $clase_label = "block text-xs font-semibold uppercase tracking-wide text-neutral
             </div>
         <?php endif; ?>
 
-        <!-- El action conserva el id en la URL para que el POST sepa qué registro actualizar -->
-        <form action="editar.php?id=<?php echo $id; ?>" method="POST"
-              class="bg-white rounded-2xl border border-neutral-200 shadow-sm p-6 sm:p-8 space-y-5">
+        <!-- El action conserva el id en la URL para saber qué registro actualizar -->
+        <form action="editar.php?id=<?php echo $id; ?>" method="POST" class="space-y-6">
 
-            <!-- ID: readonly (solo lectura), fondo gris para indicar que no se edita -->
-            <div>
-                <label for="id_inventario" class="<?php echo $clase_label; ?>">ID</label>
-                <input type="text" id="id_inventario" value="<?php echo (int) $registro['id_inventario']; ?>" readonly
-                       class="w-full px-4 py-3 bg-neutral-100 border border-neutral-200 rounded-xl text-sm text-neutral-500 font-mono cursor-not-allowed focus:outline-none">
-            </div>
+            <!-- ============ BLOQUE 1: DATOS DEL MODELO ============ -->
+            <div class="bg-white rounded-2xl border border-neutral-200 shadow-sm p-6 sm:p-8 space-y-5">
+                <h2 class="text-sm font-black uppercase tracking-widest text-neutral-400">Modelo (afecta a todas sus tallas y colores)</h2>
 
-            <div>
-                <label for="id_modelo" class="<?php echo $clase_label; ?>">Modelo</label>
-                <select id="id_modelo" name="id_modelo" required class="<?php echo $clase_input; ?>">
-                    <option value="">Selecciona un modelo...</option>
-                    <?php foreach ($modelos as $m): ?>
-                        <option value="<?php echo (int) $m['id_modelo']; ?>"
-                            <?php echo ((string) $m['id_modelo'] === (string) $registro['id_modelo']) ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($m['codigo_modelo'] . ' — ' . $m['nombre']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                    <label for="talla" class="<?php echo $clase_label; ?>">Talla</label>
-                    <input type="text" id="talla" name="talla" maxlength="10" required placeholder="Ej: 42"
-                           value="<?php echo htmlspecialchars($registro['talla']); ?>" class="<?php echo $clase_input; ?>">
+                <!-- Solo lectura: cambiar nombre/código afectaría a todo el inventario del modelo -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                    <div>
+                        <label class="<?php echo $clase_label; ?>">ID</label>
+                        <input type="text" value="<?php echo (int) $registro['id_inventario']; ?>" readonly class="<?php echo $clase_ro; ?> font-mono">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="<?php echo $clase_label; ?>">Código del modelo</label>
+                        <input type="text" value="<?php echo htmlspecialchars($registro['codigo_modelo']); ?>" readonly class="<?php echo $clase_ro; ?>">
+                    </div>
                 </div>
+
                 <div>
-                    <label for="color" class="<?php echo $clase_label; ?>">Color</label>
-                    <input type="text" id="color" name="color" maxlength="50" required placeholder="Ej: Negro"
-                           value="<?php echo htmlspecialchars($registro['color']); ?>" class="<?php echo $clase_input; ?>">
+                    <label class="<?php echo $clase_label; ?>">Nombre del modelo</label>
+                    <input type="text" value="<?php echo htmlspecialchars($registro['nombre']); ?>" readonly class="<?php echo $clase_ro; ?>">
+                </div>
+
+                <div>
+                    <label class="<?php echo $clase_label; ?>">Categoría</label>
+                    <input type="text" value="<?php echo htmlspecialchars($registro['nombre_categoria'] . ' · ' . $registro['publico']); ?>" readonly class="<?php echo $clase_ro; ?>">
+                </div>
+
+                <!-- Editables (se guardan en la tabla modelos) -->
+                <div>
+                    <label for="precio_venta" class="<?php echo $clase_label; ?>">Precio de venta (Bs.)</label>
+                    <input type="number" id="precio_venta" name="precio_venta" min="0.01" step="0.01" required
+                           value="<?php echo htmlspecialchars((string) $registro['precio_venta']); ?>" class="<?php echo $clase_input; ?>">
+                </div>
+
+                <div>
+                    <label for="url_imagen" class="<?php echo $clase_label; ?>">URL de la imagen <span class="normal-case text-neutral-400 font-normal">(opcional)</span></label>
+                    <input type="url" id="url_imagen" name="url_imagen" maxlength="255" placeholder="https://..."
+                           value="<?php echo htmlspecialchars((string) ($registro['url_imagen'] ?? '')); ?>" class="<?php echo $clase_input; ?>">
                 </div>
             </div>
 
-            <div>
-                <label for="stock_actual" class="<?php echo $clase_label; ?>">Stock actual</label>
-                <input type="number" id="stock_actual" name="stock_actual" min="0" step="1" required placeholder="0"
-                       value="<?php echo htmlspecialchars((string) $registro['stock_actual']); ?>" class="<?php echo $clase_input; ?>">
+            <!-- ============ BLOQUE 2: DATOS DEL INVENTARIO ============ -->
+            <div class="bg-white rounded-2xl border border-neutral-200 shadow-sm p-6 sm:p-8 space-y-5">
+                <h2 class="text-sm font-black uppercase tracking-widest text-neutral-400">Inventario (este registro)</h2>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label for="talla" class="<?php echo $clase_label; ?>">Talla</label>
+                        <input type="text" id="talla" name="talla" maxlength="10" required
+                               value="<?php echo htmlspecialchars($registro['talla']); ?>" class="<?php echo $clase_input; ?>">
+                    </div>
+                    <div>
+                        <label for="color" class="<?php echo $clase_label; ?>">Color</label>
+                        <input type="text" id="color" name="color" maxlength="50" required
+                               value="<?php echo htmlspecialchars($registro['color']); ?>" class="<?php echo $clase_input; ?>">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="stock_actual" class="<?php echo $clase_label; ?>">Stock actual</label>
+                    <input type="number" id="stock_actual" name="stock_actual" min="0" step="1" required
+                           value="<?php echo htmlspecialchars((string) $registro['stock_actual']); ?>" class="<?php echo $clase_input; ?>">
+                </div>
             </div>
 
-            <div class="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+            <div class="flex flex-col-reverse sm:flex-row gap-3">
                 <a href="index.php"
                    class="flex-1 text-center px-6 py-3 border border-neutral-300 rounded-full text-sm font-semibold uppercase tracking-wide text-neutral-600 hover:border-black hover:text-black transition">
                     Cancelar

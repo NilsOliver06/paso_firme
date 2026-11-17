@@ -69,20 +69,20 @@ $rol_usuario    = $_SESSION['rol_nombre'] ?? 'Invitado';
                 </div>
             </div>
 
-            <!-- Módulo 2: Buscador en Mostrador (HU-03) -->
+            <!-- Módulo 2: Catálogo de Modelos (disponible para todos los roles) -->
             <div class="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm flex flex-col justify-between hover:border-black transition">
                 <div>
                     <div class="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center font-bold text-black mb-4">
-                        🔍
+                        👟
                     </div>
-                    <h2 class="text-lg font-bold text-neutral-900">Buscador Rápido de Mostrador</h2>
+                    <h2 class="text-lg font-bold text-neutral-900">Catálogo de Modelos</h2>
                     <p class="text-xs text-neutral-500 mt-2">
-                        Consulta instantánea de disponibilidad de tallas para atención al cliente al paso.
+                        Explora visualmente todos los modelos disponibles, precios y características.
                     </p>
                 </div>
                 <div class="mt-6 pt-4 border-t border-neutral-100 flex justify-between items-center">
                     <span class="text-xs text-neutral-400 font-medium">HU-03</span>
-                    <span class="text-xs font-bold uppercase tracking-wider text-black">Próximamente &rarr;</span>
+                    <a href="modelos/index.php" class="text-xs font-bold uppercase tracking-wider text-black hover:underline">VER CATÁLOGO &rarr;</a>
                 </div>
             </div>
 
