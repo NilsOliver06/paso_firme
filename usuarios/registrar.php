@@ -39,6 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($val['nombres'] === '' || mb_strlen($val['nombres']) > 100) {
         $error = 'El nombre es obligatorio (máximo 100 caracteres).';
+    } elseif (!preg_match('/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/u', $val['nombres'])) {
+        $error = 'El campo nombres solo debe contener letras y espacios (sin números ni símbolos).';
     } elseif (filter_var($val['correo'], FILTER_VALIDATE_EMAIL) === false || mb_strlen($val['correo']) > 100) {
         $error = 'Ingresa un correo válido.';
     } elseif (mb_strlen($pass) < 6) {
@@ -107,6 +109,9 @@ $clase_label = "block text-xs font-semibold uppercase tracking-wide text-neutral
             <div>
                 <label for="nombres" class="<?php echo $clase_label; ?>">Nombres</label>
                 <input type="text" id="nombres" name="nombres" maxlength="100" required
+                       pattern="^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$"
+                       title="Solo se permiten letras y espacios"
+                       placeholder="Ej: Armando Mendoza"
                        value="<?php echo htmlspecialchars($val['nombres']); ?>" class="<?php echo $clase_input; ?>">
             </div>
 

@@ -75,11 +75,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $registro['precio_venta'] = $precio;
     $registro['url_imagen']   = $url;
 
-    // Validaciones en el servidor
-    if ($talla === '' || mb_strlen($talla) > 10) {
-        $error = 'La talla es obligatoria (máximo 10 caracteres).';
-    } elseif ($color === '' || mb_strlen($color) > 50) {
-        $error = 'El color es obligatorio (máximo 50 caracteres).';
+    // Validaciones estrictas en el servidor (antes de ejecutar cualquier consulta SQL)
+    if ($talla === '' || mb_strlen($talla) > 10 || !preg_match('/^[1-9][0-9]*$/', $talla)) {
+        $error = 'Campo Talla inválido: solo se aceptan números enteros positivos mayores a 0 (sin letras, negativos ni decimales).';
+    } elseif ($color === '' || mb_strlen($color) > 50 || !preg_match('/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s\/]+$/u', $color)) {
+        $error = 'Campo Color inválido: solo se aceptan letras, espacios y la barra diagonal "/" (ej. Blanco/Verde), sin números.';
     } elseif (filter_var($stock, FILTER_VALIDATE_INT) === false || (int) $stock < 0) {
         $error = 'El stock debe ser un número entero mayor o igual a 0.';
     } elseif (!is_numeric($precio) || (float) $precio <= 0 || (float) $precio > 99999999.99) {
@@ -203,12 +203,16 @@ $clase_label = "block text-xs font-semibold uppercase tracking-wide text-neutral
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
                         <label for="talla" class="<?php echo $clase_label; ?>">Talla</label>
-                        <input type="text" id="talla" name="talla" maxlength="10" required
+                        <input type="number" id="talla" name="talla" min="1" step="1" required placeholder="Ej: 42"
+                               title="Ingresa un número entero positivo mayor a 0 (ej. 38, 42)"
+                               onkeydown="return !['e','E','+','-','.',','].includes(event.key)"
                                value="<?php echo htmlspecialchars($registro['talla']); ?>" class="<?php echo $clase_input; ?>">
                     </div>
                     <div>
                         <label for="color" class="<?php echo $clase_label; ?>">Color</label>
-                        <input type="text" id="color" name="color" maxlength="50" required
+                        <input type="text" id="color" name="color" maxlength="50" required placeholder="Ej: Blanco/Verde"
+                               pattern="^[A-Za-zÁÉÍÓÚáéíóúÑñ\s\/]+$"
+                               title="Solo se permiten letras, espacios y la barra diagonal / (ej. Blanco/Verde). No se permiten números."
                                value="<?php echo htmlspecialchars($registro['color']); ?>" class="<?php echo $clase_input; ?>">
                     </div>
                 </div>
