@@ -100,6 +100,20 @@ $clase_label = "block text-xs font-semibold uppercase tracking-wide text-neutral
         <a href="index.php" class="text-xs font-semibold uppercase tracking-widest text-neutral-400 hover:text-black transition">&larr; Volver al catálogo</a>
         <h1 class="text-3xl font-black tracking-tight mt-1 mb-6">Nuevo Modelo</h1>
 
+        <!-- ================= BARRA DE PESTAÑAS (en forma de píldora) ================= -->
+        <!-- Contenedor gris con esquinas totalmente redondeadas (rounded-full) -->
+        <div class="flex gap-2 mb-6 p-1 bg-neutral-200 rounded-full">
+            <!-- Pestaña INACTIVA: enlace a agregar stock a un modelo existente (fondo gris claro, texto oscuro) -->
+            <a href="../inventario/registrar.php"
+               class="flex-1 text-center px-4 py-2.5 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wide bg-neutral-100 text-neutral-700 hover:bg-white hover:text-black transition">
+                Agregar a Modelo Existente
+            </a>
+            <!-- Pestaña ACTIVA (esta página): fondo negro, texto blanco. Es un <span>, no un enlace -->
+            <span class="flex-1 text-center px-4 py-2.5 rounded-full text-xs sm:text-sm font-semibold uppercase tracking-wide bg-black text-white">
+                Crear Nuevo Modelo
+            </span>
+        </div>
+
         <?php if ($error !== ''): ?>
             <div class="mb-6 rounded-xl border border-neutral-300 bg-neutral-100 px-4 py-3 text-sm text-neutral-800" role="alert">
                 <?php echo htmlspecialchars($error); ?>
