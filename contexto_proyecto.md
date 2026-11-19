@@ -1,8 +1,10 @@
 # Contexto del Proyecto: PasoFirme - Sistema de Calzados
 **Materia:** Tecnología Web I
-**Stack Tecnológico:** PHP (Procedural con mysqli), MySQL/MariaDB/phpyadmin, Tailwind CSS.
-**Base de Datos:** `paso_firme_db` (Tablas principales: roles, usuarios, categorias, modelos, inventario).
-**scrip de crecion de la base de datos en phpmyadmin**
+**Stack Tecnológico:** PHP (Procedural con mysqli), MySQL/MariaDB (phpMyAdmin / Laragon), Tailwind CSS.
+**Base de Datos:** `paso_firme_db` (Tablas: roles, usuarios, clientes, categorias, modelos, inventario, arqueo_caja, ventas, detalle_venta, configuracion).
+
+## Script de creación de la base de datos (Actualizado al Sprint 3)
+```sql
 -- 1. Crear la base de datos y seleccionarla
 CREATE DATABASE IF NOT EXISTS paso_firme_db CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish_ci;
 USE paso_firme_db;
@@ -54,54 +56,58 @@ CREATE TABLE modelos (
 CREATE TABLE inventario (
     id_inventario INT AUTO_INCREMENT PRIMARY KEY,
     id_modelo INT NOT NULL,
-    talla VARCHAR(10) NOT NULL,          -- Número de calzado
-    color VARCHAR(50) NOT NULL,          -- Color específico
-    stock_actual INT NOT NULL CHECK (stock_actual >= 0), -- Cantidad disponible
+    talla VARCHAR(10) NOT NULL,          -- Solo números positivos
+    color VARCHAR(50) NOT NULL,          -- Solo letras, espacios y "/"
+    stock_actual INT NOT NULL CHECK (stock_actual >= 0),
     estado_activo TINYINT(1) DEFAULT 1,  -- 1 = Activo, 0 = Defectuoso/Baja
     fecha_actualizacion DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (id_modelo) REFERENCES modelos(id_modelo) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- 8. Tabla de Ventas (Comprobantes digitales)
+-- 8. Tabla de Arqueo de Caja (Control de turnos y cierre administrativo)
+CREATE TABLE arqueo_caja (
+    id_arqueo INT AUTO_INCREMENT PRIMARY KEY,
+    estado ENUM('ABIERTA', 'CERRADA') NOT NULL DEFAULT 'ABIERTA',
+    fecha DATE NOT NULL,
+    fecha_apertura DATETIME DEFAULT CURRENT_TIMESTAMP,
+    fecha_cierre DATETIME NULL,
+    monto_apertura DECIMAL(10,2) NOT NULL,
+    monto_sistema DECIMAL(10,2) DEFAULT 0.00, -- Apertura + ventas en efectivo
+    monto_fisico DECIMAL(10,2) DEFAULT 0.00,  -- Dinero real contado al cierre
+    descuadre DECIMAL(10,2) DEFAULT 0.00,     -- monto_fisico - monto_sistema
+    id_usuario INT NOT NULL,                  -- Usuario responsable del turno
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- 9. Tabla de Ventas (Comprobantes digitales - Inmutables por auditoría)
 CREATE TABLE ventas (
     id_venta INT AUTO_INCREMENT PRIMARY KEY,
     fecha_hora DATETIME DEFAULT CURRENT_TIMESTAMP,
-    total DECIMAL(10,2) NOT NULL,        -- Suma automatizada de la venta
-    metodo_pago VARCHAR(50) NOT NULL,    -- Efectivo, Transferencia QR, etc.
-    id_usuario INT NOT NULL,             -- Vendedor que procesó la atención
-    id_cliente INT NULL,                 -- Puede ser NULL si es cliente al paso
+    total DECIMAL(10,2) NOT NULL,
+    metodo_pago VARCHAR(50) NOT NULL,    -- Efectivo, Transferencia QR
+    nro_comprobante VARCHAR(100) NULL,   -- Opcional para pagos QR
+    id_usuario INT NOT NULL,             -- Vendedor/Admin que procesó la venta
+    id_cliente INT NULL,                 -- NULL si es cliente al paso
+    id_arqueo INT NULL,                  -- Turno de caja activo al momento de la venta
     FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE RESTRICT ON UPDATE CASCADE,
-    FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente) ON DELETE SET NULL ON UPDATE CASCADE
+    FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (id_arqueo) REFERENCES arqueo_caja(id_arqueo) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
--- 9. Tabla de Detalle de Venta (Líneas del comprobante)
+-- 10. Tabla de Detalle de Venta (Líneas del comprobante)
 CREATE TABLE detalle_venta (
     id_detalle INT AUTO_INCREMENT PRIMARY KEY,
     id_venta INT NOT NULL,
-    id_inventario INT NOT NULL,          -- Calzado específico vendido
+    id_inventario INT NOT NULL,
     cantidad INT NOT NULL CHECK (cantidad > 0),
-    precio_unitario DECIMAL(10,2) NOT NULL, -- Histórico: Precio exacto al momento de la venta
+    precio_unitario DECIMAL(10,2) NOT NULL,
     subtotal DECIMAL(10,2) NOT NULL,
     FOREIGN KEY (id_venta) REFERENCES ventas(id_venta) ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (id_inventario) REFERENCES inventario(id_inventario) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
--- 10. Tabla de Arqueo de Caja (Control administrativo nocturno)
-CREATE TABLE arqueo_caja (
-    id_arqueo INT AUTO_INCREMENT PRIMARY KEY,
-    fecha DATE NOT NULL,                 -- Fecha del arqueo
-    monto_apertura DECIMAL(10,2) NOT NULL,
-    monto_sistema DECIMAL(10,2) NOT NULL, -- Total calculado por ventas
-    monto_fisico DECIMAL(10,2) NOT NULL,  -- Dinero real contado
-    descuadre DECIMAL(10,2) NOT NULL,     -- Diferencia matemática
-    id_usuario INT NOT NULL,              -- Administrador responsable
-    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE RESTRICT ON UPDATE CASCADE
+-- 11. Tabla de Configuración (URL del QR de pago editable solo por Admin)
+CREATE TABLE configuracion (
+    clave VARCHAR(50) PRIMARY KEY,
+    valor TEXT NOT NULL
 );
-## Reglas de Desarrollo para Antigravity
-1. **Estilo de Código:** Sigue el estándar procedural de PHP mostrado en `codigo.txt`, utilizando sentencias preparadas de `mysqli` para evitar inyección SQL.
-2. **Frontend:** Usa Tailwind CSS vía CDN para replicar una interfaz minimalista, limpia y en escala de grises/negros inspirada en Nike.
-3. **Roles:** Validar accesos según la tabla de roles (Administrador y Vendedor).
-4. **Sprint 1 Actual:** 
-   - HU-01: Login y Autenticación de usuarios.
-   - HU-02: Registro, listado, edición y eliminación de inventario (Tallas/Colores).
-   - HU-03: Buscador rápido de disponibilidad en mostrador.

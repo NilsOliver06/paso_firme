@@ -39,10 +39,20 @@ $nav_rol    = $es_admin ? 'Administrador' : 'Vendedor';
                 Sistema Calzados
             </span>
 
-            <!-- Enlace "Catálogo": visible para todos los roles -->
+            <!-- Enlaces principales: visibles para todos los roles (Admin y Vendedor) -->
             <a href="/paso_firme/modelos/index.php"
                class="text-sm font-bold uppercase tracking-wide text-neutral-800 hover:text-black px-2 py-2 transition">
                 Catálogo
+            </a>
+
+            <a href="/paso_firme/ventas/index.php"
+               class="text-sm font-bold uppercase tracking-wide text-neutral-800 hover:text-black px-2 py-2 transition">
+                Ventas
+            </a>
+
+            <a href="/paso_firme/caja/index.php"
+               class="text-sm font-bold uppercase tracking-wide text-neutral-800 hover:text-black px-2 py-2 transition">
+                Caja
             </a>
 
             <?php if ($_SESSION['rol'] == 1): ?>
@@ -83,7 +93,12 @@ $nav_rol    = $es_admin ? 'Administrador' : 'Vendedor';
 
                         <a href="/paso_firme/ventas/index.php"
                            class="block px-4 py-3 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-black transition">
-                            Ventas
+                            Historial de Ventas
+                        </a>
+
+                        <a href="/paso_firme/caja/index.php"
+                           class="block px-4 py-3 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-black transition">
+                            Control de Caja
                         </a>
                     </div>
                 </div>

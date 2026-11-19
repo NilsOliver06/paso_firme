@@ -49,8 +49,8 @@ $rol_usuario    = $_SESSION['rol_nombre'] ?? 'Invitado';
             </p>
         </div>
 
-        <!-- MÓDULOS DEL SPRINT 1 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- MÓDULOS DEL SISTEMA -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             
             <!-- Módulo 1: Control de Inventario (HU-02) -->
             <div class="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm flex flex-col justify-between hover:border-black transition">
@@ -86,20 +86,37 @@ $rol_usuario    = $_SESSION['rol_nombre'] ?? 'Invitado';
                 </div>
             </div>
 
-            <!-- Módulo 3: Punto de Venta (Sprint 2) -->
-            <div class="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm flex flex-col justify-between hover:border-black transition opacity-80">
+            <!-- Módulo 3: Punto de Venta y Comprobantes -->
+            <div class="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm flex flex-col justify-between hover:border-black transition">
                 <div>
                     <div class="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center font-bold text-black mb-4">
                         💳
                     </div>
                     <h2 class="text-lg font-bold text-neutral-900">Ventas y Comprobantes</h2>
                     <p class="text-xs text-neutral-500 mt-2">
-                        Registro de ventas, formas de pago (efectivo, QR) y arqueo de caja diario.
+                        Punto de venta en mostrador, formas de pago (efectivo, QR) y emisión de recibos.
                     </p>
                 </div>
                 <div class="mt-6 pt-4 border-t border-neutral-100 flex justify-between items-center">
-                    <span class="text-xs text-neutral-400 font-medium">Sprint 2</span>
-                    <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">En desarrollo</span>
+                    <span class="text-xs text-neutral-400 font-medium">Sprint 3</span>
+                    <a href="ventas/index.php" class="text-xs font-bold uppercase tracking-wider text-black hover:underline">Ir a Ventas &rarr;</a>
+                </div>
+            </div>
+
+            <!-- Módulo 4: Control de Caja y Turnos -->
+            <div class="bg-white p-6 rounded-2xl border border-neutral-200 shadow-sm flex flex-col justify-between hover:border-black transition">
+                <div>
+                    <div class="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center font-bold text-black mb-4">
+                        💵
+                    </div>
+                    <h2 class="text-lg font-bold text-neutral-900">Control de Caja</h2>
+                    <p class="text-xs text-neutral-500 mt-2">
+                        Apertura y cierre de turnos, arqueo diario y balance en efectivo vs. transferencias.
+                    </p>
+                </div>
+                <div class="mt-6 pt-4 border-t border-neutral-100 flex justify-between items-center">
+                    <span class="text-xs text-neutral-400 font-medium">Sprint 3</span>
+                    <a href="caja/index.php" class="text-xs font-bold uppercase tracking-wider text-black hover:underline">Ir a Caja &rarr;</a>
                 </div>
             </div>
 
