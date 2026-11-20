@@ -27,11 +27,11 @@ require_once '../includes/conexion.php';
 
 /** @var mysqli $conexion */
 
-// 5. Consulta con JOIN: usuarios + nombre de su rol
+// 5. Consulta con JOIN: usuarios + nombre de su rol (incluye columna ci)
 //    (nunca se selecciona la columna password)
 $usuarios = mysqli_fetch_all(
     mysqli_query($conexion,
-        "SELECT u.id_usuario, u.nombres, u.correo, u.id_rol, r.nombre_rol
+        "SELECT u.id_usuario, u.nombres, u.ci, u.correo, u.id_rol, r.nombre_rol
          FROM usuarios u
          INNER JOIN roles r ON u.id_rol = r.id_rol
          ORDER BY u.nombres ASC"),
@@ -97,14 +97,15 @@ $err = $errores[$_GET['error'] ?? ''] ?? '';
                     <tr>
                         <th class="px-6 py-4 font-semibold">ID</th>
                         <th class="px-6 py-4 font-semibold">Nombres</th>
-                        <th class="px-6 py-4 font-semibold">Correo</th>
+                        <th class="px-6 py-4 font-semibold">CI</th>
+                        <th class="px-6 py-4 font-semibold">Correo Institucional</th>
                         <th class="px-6 py-4 font-semibold">Rol</th>
                         <th class="px-6 py-4 font-semibold text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-neutral-100">
                 <?php if ($total === 0): ?>
-                    <tr><td colspan="5" class="px-6 py-12 text-center text-neutral-400">No hay usuarios registrados.</td></tr>
+                    <tr><td colspan="6" class="px-6 py-12 text-center text-neutral-400">No hay usuarios registrados.</td></tr>
                 <?php endif; ?>
 
                 <?php foreach ($usuarios as $u):
@@ -117,6 +118,9 @@ $err = $errores[$_GET['error'] ?? ''] ?? '';
                         <td class="px-6 py-4 font-semibold whitespace-nowrap">
                             <?php echo htmlspecialchars($u['nombres']); ?>
                             <?php if ($es_yo): ?><span class="ml-2 text-xs font-medium text-neutral-400">(tú)</span><?php endif; ?>
+                        </td>
+                        <td class="px-6 py-4 font-mono text-neutral-600 whitespace-nowrap">
+                            <?php echo htmlspecialchars((string) ($u['ci'] ?? '—')); ?>
                         </td>
                         <td class="px-6 py-4 text-neutral-600"><?php echo htmlspecialchars($u['correo']); ?></td>
                         <td class="px-6 py-4">

@@ -55,6 +55,11 @@ $nav_rol    = $es_admin ? 'Administrador' : 'Vendedor';
                 Caja
             </a>
 
+            <a href="/paso_firme/clientes/index.php"
+               class="text-sm font-bold uppercase tracking-wide text-neutral-800 hover:text-black px-2 py-2 transition">
+                Clientes
+            </a>
+
             <?php if ($_SESSION['rol'] == 1): ?>
             <!--
               MENÚ DESPLEGABLE "FUNCIONES" (solo Administrador):

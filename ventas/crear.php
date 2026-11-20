@@ -387,7 +387,14 @@ $clase_label = "block text-xs font-semibold uppercase tracking-wide text-neutral
                     <input type="hidden" name="carrito" id="carrito-json" value="[]">
 
                     <div>
-                        <label for="id_cliente" class="<?php echo $clase_label; ?>">Cliente</label>
+                        <div class="flex items-center justify-between mb-2">
+                            <label for="id_cliente" class="block text-xs font-semibold uppercase tracking-wide text-neutral-700">Cliente</label>
+                            <!-- Acceso rápido para registrar un cliente nuevo -->
+                            <a href="../clientes/registrar.php"
+                               class="text-xs font-semibold uppercase tracking-wide text-neutral-500 hover:text-black transition">
+                                + Nuevo Cliente
+                            </a>
+                        </div>
                         <select id="id_cliente" name="id_cliente" class="<?php echo $clase_input; ?>">
                             <option value="">Cliente al paso</option>
                             <?php foreach ($clientes as $cl): ?>

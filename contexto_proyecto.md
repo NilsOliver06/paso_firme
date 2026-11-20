@@ -3,7 +3,7 @@
 **Stack Tecnológico:** PHP (Procedural con mysqli), MySQL/MariaDB (phpMyAdmin / Laragon), Tailwind CSS.
 **Base de Datos:** `paso_firme_db` (Tablas: roles, usuarios, clientes, categorias, modelos, inventario, arqueo_caja, ventas, detalle_venta, configuracion).
 
-## Script de creación de la base de datos (Actualizado al Sprint 3)
+## Script de creación de la base de datos (Actualizado al Sprint 4)
 ```sql
 -- 1. Crear la base de datos y seleccionarla
 CREATE DATABASE IF NOT EXISTS paso_firme_db CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish_ci;
@@ -18,8 +18,9 @@ CREATE TABLE roles (
 -- 3. Tabla de Usuarios (Personal de la tienda)
 CREATE TABLE usuarios (
     id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+    ci VARCHAR(20) NULL UNIQUE,          -- Carnet de identidad (solo números)
     nombres VARCHAR(100) NOT NULL,
-    correo VARCHAR(100) NOT NULL UNIQUE,
+    correo VARCHAR(100) NOT NULL UNIQUE, -- Generado automáticamente: inicial_rol.ci@pasofirme.com
     password VARCHAR(255) NOT NULL,
     id_rol INT NOT NULL,
     FOREIGN KEY (id_rol) REFERENCES roles(id_rol) ON DELETE RESTRICT ON UPDATE CASCADE
@@ -111,3 +112,24 @@ CREATE TABLE configuracion (
     clave VARCHAR(50) PRIMARY KEY,
     valor TEXT NOT NULL
 );
+```
+
+## Reglas de Negocio y Desarrollo
+
+### Generación Automática de Correo Institucional
+- **Formato:** `letra_inicial_del_rol.ci@pasofirme.com` en minúsculas (ej. `a.1234567@pasofirme.com` para Administrador o `v.1234567@pasofirme.com` para Vendedor).
+- El campo `ci` solo acepta números enteros.
+- El campo `correo` se genera en tiempo real vía JavaScript como previsualización de solo lectura y se valida/recalcula estrictamente en el backend en PHP antes del `INSERT` o `UPDATE`.
+- Tanto el `ci` como el `correo` son únicos en la tabla `usuarios`.
+
+### Políticas de Caja y Ventas
+- Para realizar una venta en `ventas/crear.php`, es obligatorio que exista un turno activo con `estado = 'ABIERTA'` en `arqueo_caja`.
+- Las ventas registradas son inmutables por políticas de auditoría (no se permite edición ni eliminación).
+- Al eliminar un cliente, su histórico de ventas se conserva gracias a la restricción `ON DELETE SET NULL`.
+
+## Estado de Sprints
+
+- **Sprint 1 (Completado):** Configuración de entorno, conexión a `paso_firme_db`, autenticación de usuarios (`login.php`, `auth.php`), control de sesiones y roles (`Administrador` y `Vendedor`).
+- **Sprint 2 (Completado):** Módulo de inventario con validaciones por talla y color, catálogo visual de modelos de calzado con CRUD, gestión de usuarios (`usuarios/`).
+- **Sprint 3 (Completado):** Control y arqueo de caja por turnos (`caja/`), punto de venta transaccional con control de stock y soporte para transferencias QR con comprobante configurable (`ventas/crear.php`), historial inmutable de ventas (`ventas/index.php`) y recibo formal imprimible (`ventas/recibo.php`).
+- **Sprint 4 (Completado):** CRUD completo de Clientes (`clientes/`), generación automática de correos institucionales en `usuarios/` a partir del CI y rol (`letra_inicial_del_rol.ci@pasofirme.com`), y rediseño integral del Dashboard (`index.php`) con estética minimalista estilo Nike (hero banner institucional, indicadores KPIs en tiempo real y tarjetas de acceso Bento con SVG).
