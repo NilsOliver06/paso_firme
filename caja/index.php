@@ -29,10 +29,11 @@ $error = '';
 
 /**
  * Convierte un texto numérico en monto con 2 decimales, o null si no es válido (>= 0)
- * @param mixed $valor
+ *
+ * @param string|int|float|null $valor
  * @return float|null
  */
-function parsear_monto(mixed $valor): ?float
+function parsear_monto(string|int|float|null $valor): ?float
 {
     $valor = trim((string) $valor);
     if ($valor === '' || !is_numeric($valor)) {
@@ -191,10 +192,11 @@ $msg = $mensajes[$_GET['msg'] ?? ''] ?? '';
 
 /**
  * Formatea dinero como "Bs. 1.250,00"
- * @param mixed $n
+ *
+ * @param float|int|string|null $n
  * @return string
  */
-function bs(mixed $n): string
+function bs(float|int|string|null $n): string
 {
     return 'Bs. ' . number_format((float) $n, 2, ',', '.');
 }

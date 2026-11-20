@@ -1,8 +1,10 @@
 <?php
 // ==============================================================================
 // ARCHIVO: usuarios/editar.php
-// DESCRIPCIÓN: Edita nombres, correo y rol de un usuario (sin contraseña).
-//              Solo Administrador (rol 1).
+// DESCRIPCIÓN: Edita nombres, CI y rol de un usuario (sin contraseña).
+//              Recalcula y actualiza automáticamente el correo institucional
+//              con el formato inicial_rol.ci@pasofirme.com cuando cambia el CI
+//              o el Rol. Solo Administrador (rol 1).
 // ==============================================================================
 
 // 1. Sesión
@@ -34,8 +36,8 @@ if ($id === false || $id === null || $id <= 0) {
     exit;
 }
 
-// 6. Carga el usuario actual (sin traer la contraseña)
-$stmt = mysqli_prepare($conexion, "SELECT id_usuario, nombres, correo, id_rol FROM usuarios WHERE id_usuario = ?");
+// 6. Carga el usuario actual (incluyendo ci, sin traer la contraseña)
+$stmt = mysqli_prepare($conexion, "SELECT id_usuario, nombres, ci, correo, id_rol FROM usuarios WHERE id_usuario = ?");
 mysqli_stmt_bind_param($stmt, "i", $id);
 mysqli_stmt_execute($stmt);
 $usuario = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
@@ -46,23 +48,26 @@ if (!$usuario) {
     exit;
 }
 
+$ci_original  = (string) ($usuario['ci'] ?? '');
+$rol_original = (int) $usuario['id_rol'];
+
 // ¿Está editando su propia cuenta? (para evitar que se quite el rol de admin por accidente)
 $es_yo = ($id === (int) $_SESSION['id']);
 
 $error = '';
 
-// 7. POST: validación + UPDATE
+// 7. POST: validación + recálculo automático de correo + UPDATE
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $usuario['nombres'] = trim($_POST['nombres'] ?? '');
-    $usuario['correo']  = trim($_POST['correo'] ?? '');
+    $usuario['ci']      = trim($_POST['ci'] ?? '');
     $usuario['id_rol']  = (string) ($_POST['id_rol'] ?? '');
 
     if ($usuario['nombres'] === '' || mb_strlen($usuario['nombres']) > 100) {
         $error = 'El nombre es obligatorio (máximo 100 caracteres).';
     } elseif (!preg_match('/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/u', $usuario['nombres'])) {
         $error = 'El campo nombres solo debe contener letras y espacios (sin números ni símbolos).';
-    } elseif (filter_var($usuario['correo'], FILTER_VALIDATE_EMAIL) === false || mb_strlen($usuario['correo']) > 100) {
-        $error = 'Ingresa un correo válido.';
+    } elseif ($usuario['ci'] === '' || mb_strlen($usuario['ci']) > 20 || !preg_match('/^[0-9]+$/', $usuario['ci'])) {
+        $error = 'El Carnet de Identidad (CI) es obligatorio y solo debe contener números (máximo 20 dígitos).';
     } elseif (filter_var($usuario['id_rol'], FILTER_VALIDATE_INT) === false || (int) $usuario['id_rol'] <= 0) {
         $error = 'Selecciona un rol válido.';
     } elseif ($es_yo && (int) $usuario['id_rol'] !== 1) {
@@ -70,24 +75,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $id_rol = (int) $usuario['id_rol'];
 
-        $stmt = mysqli_prepare($conexion,
-            "UPDATE usuarios SET nombres = ?, correo = ?, id_rol = ? WHERE id_usuario = ?");
-        // "ssii" = string, string, integer, integer
-        mysqli_stmt_bind_param($stmt, "ssii", $usuario['nombres'], $usuario['correo'], $id_rol, $id);
+        // 7.1 Consulta el nombre_rol para obtener su inicial
+        $stmt_rol = mysqli_prepare($conexion, "SELECT nombre_rol FROM roles WHERE id_rol = ? LIMIT 1");
+        mysqli_stmt_bind_param($stmt_rol, "i", $id_rol);
+        mysqli_stmt_execute($stmt_rol);
+        $fila_rol = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_rol));
+        mysqli_stmt_close($stmt_rol);
 
-        try {
-            mysqli_stmt_execute($stmt);
-            mysqli_stmt_close($stmt);
-            // Si editó su propio nombre, se actualiza en la sesión para la cabecera
-            if ($es_yo) {
-                $_SESSION['nombres'] = $usuario['nombres'];
+        if (!$fila_rol) {
+            $error = 'El rol seleccionado no existe.';
+        } else {
+            // 7.2 Recalcula el correo institucional con el formato inicial_rol.ci@pasofirme.com
+            $inicial_rol = strtolower(substr(trim($fila_rol['nombre_rol']), 0, 1));
+            $correo_gen  = $inicial_rol . '.' . $usuario['ci'] . '@pasofirme.com';
+            $usuario['correo'] = $correo_gen;
+
+            // 7.3 Verifica que ningún OTRO usuario tenga ese mismo CI o correo
+            $stmt_dup = mysqli_prepare($conexion,
+                "SELECT ci, correo FROM usuarios WHERE (ci = ? OR correo = ?) AND id_usuario <> ? LIMIT 1");
+            mysqli_stmt_bind_param($stmt_dup, "ssi", $usuario['ci'], $correo_gen, $id);
+            mysqli_stmt_execute($stmt_dup);
+            $duplicado = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_dup));
+            mysqli_stmt_close($stmt_dup);
+
+            if ($duplicado) {
+                if ((string) $duplicado['ci'] === $usuario['ci']) {
+                    $error = 'Otro usuario ya tiene registrado ese Carnet de Identidad (CI).';
+                } else {
+                    $error = 'Otro usuario ya tiene el correo institucional ' . $correo_gen . '.';
+                }
+            } else {
+                // 7.4 UPDATE preparado actualizando nombres, ci, correo e id_rol
+                $stmt = mysqli_prepare($conexion,
+                    "UPDATE usuarios SET nombres = ?, ci = ?, correo = ?, id_rol = ? WHERE id_usuario = ?");
+                // "sssii" = string, string, string, integer, integer
+                mysqli_stmt_bind_param($stmt, "sssii", $usuario['nombres'], $usuario['ci'], $correo_gen, $id_rol, $id);
+
+                try {
+                    mysqli_stmt_execute($stmt);
+                    mysqli_stmt_close($stmt);
+                    if ($es_yo) {
+                        $_SESSION['nombres'] = $usuario['nombres'];
+                    }
+                    header("Location: index.php?msg=editado");
+                    exit;
+                } catch (mysqli_sql_exception $e) {
+                    $error = ($e->getCode() === 1062)
+                        ? 'Ya existe otro usuario con ese CI o correo.'
+                        : 'No se pudo actualizar el usuario. Verifica los datos.';
+                }
             }
-            header("Location: index.php?msg=editado");
-            exit;
-        } catch (mysqli_sql_exception $e) {
-            $error = ($e->getCode() === 1062)
-                ? 'Ya existe otro usuario con ese correo.'
-                : 'No se pudo actualizar el usuario. Verifica los datos.';
         }
     }
 }
@@ -99,6 +136,7 @@ $roles = mysqli_fetch_all(
 );
 
 $clase_input = "w-full px-4 py-3 bg-white border border-neutral-300 rounded-xl text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition";
+$clase_ro    = "w-full px-4 py-3 bg-neutral-100 border border-neutral-200 rounded-xl text-sm text-neutral-600 font-mono cursor-not-allowed focus:outline-none";
 $clase_label = "block text-xs font-semibold uppercase tracking-wide text-neutral-700 mb-2";
 ?>
 <!DOCTYPE html>
@@ -135,22 +173,38 @@ $clase_label = "block text-xs font-semibold uppercase tracking-wide text-neutral
                        value="<?php echo htmlspecialchars($usuario['nombres']); ?>" class="<?php echo $clase_input; ?>">
             </div>
 
-            <div>
-                <label for="correo" class="<?php echo $clase_label; ?>">Correo</label>
-                <input type="email" id="correo" name="correo" maxlength="100" required
-                       value="<?php echo htmlspecialchars($usuario['correo']); ?>" class="<?php echo $clase_input; ?>">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="ci" class="<?php echo $clase_label; ?>">Carnet de Identidad (CI)</label>
+                    <input type="text" id="ci" name="ci" maxlength="20" inputmode="numeric" required
+                           pattern="^[0-9]+$"
+                           title="Solo se permiten números"
+                           placeholder="Ej: 1234567"
+                           value="<?php echo htmlspecialchars((string) ($usuario['ci'] ?? '')); ?>" class="<?php echo $clase_input; ?>">
+                </div>
+
+                <div>
+                    <label for="id_rol" class="<?php echo $clase_label; ?>">Rol</label>
+                    <select id="id_rol" name="id_rol" required class="<?php echo $clase_input; ?>">
+                        <?php foreach ($roles as $r):
+                            $inicial = strtolower(substr(trim($r['nombre_rol']), 0, 1));
+                        ?>
+                            <option value="<?php echo (int) $r['id_rol']; ?>"
+                                    data-inicial="<?php echo htmlspecialchars($inicial); ?>"
+                                <?php echo ((string) $r['id_rol'] === (string) $usuario['id_rol']) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($r['nombre_rol']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
 
             <div>
-                <label for="id_rol" class="<?php echo $clase_label; ?>">Rol</label>
-                <select id="id_rol" name="id_rol" required class="<?php echo $clase_input; ?>">
-                    <?php foreach ($roles as $r): ?>
-                        <option value="<?php echo (int) $r['id_rol']; ?>"
-                            <?php echo ((string) $r['id_rol'] === (string) $usuario['id_rol']) ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($r['nombre_rol']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+                <label for="correo" class="<?php echo $clase_label; ?>">
+                    Correo institucional <span class="normal-case text-neutral-400 font-normal">(se recalcula automáticamente al cambiar CI o Rol)</span>
+                </label>
+                <input type="email" id="correo" name="correo" readonly
+                       value="<?php echo htmlspecialchars($usuario['correo']); ?>" class="<?php echo $clase_ro; ?>">
             </div>
 
             <div class="flex flex-col-reverse sm:flex-row gap-3 pt-2">
@@ -165,5 +219,28 @@ $clase_label = "block text-xs font-semibold uppercase tracking-wide text-neutral
             </div>
         </form>
     </main>
+
+    <!-- ========== JAVASCRIPT: vista previa en tiempo real al cambiar CI o Rol ========== -->
+    <script>
+        const inputCi     = document.getElementById('ci');
+        const selectRol   = document.getElementById('id_rol');
+        const inputCorreo = document.getElementById('correo');
+
+        function actualizarCorreo() {
+            const ci = inputCi.value.replace(/\D+/g, '');
+            const opcion = selectRol.options[selectRol.selectedIndex];
+            const inicial = opcion ? (opcion.dataset.inicial || '') : '';
+
+            if (ci !== '' && inicial !== '') {
+                inputCorreo.value = inicial + '.' + ci + '@pasofirme.com';
+            }
+        }
+
+        inputCi.addEventListener('input', actualizarCorreo);
+        selectRol.addEventListener('change', actualizarCorreo);
+        if (inputCi.value.trim() !== '') {
+            actualizarCorreo();
+        }
+    </script>
 </body>
 </html>
