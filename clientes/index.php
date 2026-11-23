@@ -106,7 +106,7 @@ $err = $errores[$_GET['error'] ?? ''] ?? '';
                                 </a>
                                 <!-- confirm(): si el usuario cancela, el enlace no se sigue -->
                                 <a href="eliminar.php?id=<?php echo $id; ?>"
-                                   onclick="return confirm('¿Seguro que deseas eliminar a este cliente? Sus ventas anteriores se conservarán como «Cliente al paso».');"
+                                   onclick="return confirmarEnlace(this, {titulo: 'Eliminar cliente', mensaje: '¿Seguro que deseas eliminar a este cliente? Sus ventas anteriores se conservarán como «Cliente al paso».', textoConfirmar: 'Eliminar', esPeligro: true});"
                                    class="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-black hover:text-white hover:border-black transition">
                                     Eliminar
                                 </a>

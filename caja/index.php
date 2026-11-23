@@ -386,10 +386,8 @@ $clase_label = "block text-xs font-semibold uppercase tracking-wide text-neutral
                           'Descuadre: ' + (dif > 0 ? '+' : '') + fmt(dif) + '\n\n' +
                           '¿Confirmas el cierre?';
 
-            // Si el usuario cancela, no se envía el formulario
-            if (!confirm(texto)) {
-                e.preventDefault();
-            }
+            // El modal personalizado confirma antes de enviar el formulario
+            confirmarFormulario(formCierre, e, {titulo: 'Cerrar turno de caja', mensaje: texto, textoConfirmar: 'Cerrar turno'});
         });
     </script>
 <?php endif; ?>

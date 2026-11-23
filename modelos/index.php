@@ -131,7 +131,7 @@ $total = count($modelos);
                             Editar
                         </a>
                         <a href="eliminar.php?id=<?php echo $id; ?>"
-                           onclick="return confirm('¿Seguro que deseas eliminar este modelo del catálogo?');"
+                           onclick="return confirmarEnlace(this, {titulo: 'Eliminar modelo', mensaje: '¿Seguro que deseas eliminar este modelo del catálogo?', textoConfirmar: 'Eliminar', esPeligro: true});"
                            class="flex-1 text-center px-3 py-2 rounded-full border border-neutral-300 text-xs font-semibold uppercase tracking-wide text-neutral-600 hover:bg-black hover:text-white hover:border-black transition">
                             Eliminar
                         </a>

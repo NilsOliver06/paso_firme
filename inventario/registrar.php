@@ -53,15 +53,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id_modelo = (int) $inv['id_modelo'];
         $stock     = (int) $inv['stock_actual'];
 
-        // INSERT con sentencia preparada: los ? evitan la inyección SQL
-        $stmt = mysqli_prepare($conexion,
-            "INSERT INTO inventario (id_modelo, talla, color, stock_actual) VALUES (?, ?, ?, ?)");
-        // "issi" = integer, string, string, integer
-        mysqli_stmt_bind_param($stmt, "issi", $id_modelo, $inv['talla'], $inv['color'], $stock);
-
         try {
+            // 5.1 Verifica si ya existe la misma combinación (id_modelo, talla, color sin importar mayúsculas/espacios)
+            $stmt_check = mysqli_prepare($conexion,
+                "SELECT id_inventario, stock_actual, estado_activo
+                 FROM inventario
+                 WHERE id_modelo = ? AND talla = ? AND LOWER(TRIM(color)) = LOWER(TRIM(?))
+                 LIMIT 1");
+            mysqli_stmt_bind_param($stmt_check, "iss", $id_modelo, $inv['talla'], $inv['color']);
+            mysqli_stmt_execute($stmt_check);
+            $existente = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_check));
+            mysqli_stmt_close($stmt_check);
+
+            if ($existente) {
+                $id_inv = (int) $existente['id_inventario'];
+
+                if ((int) $existente['estado_activo'] === 1) {
+                    // Ya existe y está activo: suma el nuevo stock al actual
+                    $stmt_upd = mysqli_prepare($conexion,
+                        "UPDATE inventario SET stock_actual = stock_actual + ? WHERE id_inventario = ?");
+                    mysqli_stmt_bind_param($stmt_upd, "ii", $stock, $id_inv);
+                    mysqli_stmt_execute($stmt_upd);
+                    mysqli_stmt_close($stmt_upd);
+
+                    header("Location: index.php?msg=stock_sumado");
+                    exit;
+                } else {
+                    // Estaba dado de baja (estado_activo == 0): lo reactiva con el nuevo stock
+                    $stmt_re = mysqli_prepare($conexion,
+                        "UPDATE inventario SET estado_activo = 1, stock_actual = ? WHERE id_inventario = ?");
+                    mysqli_stmt_bind_param($stmt_re, "ii", $stock, $id_inv);
+                    mysqli_stmt_execute($stmt_re);
+                    mysqli_stmt_close($stmt_re);
+
+                    header("Location: index.php?msg=reactivado");
+                    exit;
+                }
+            }
+
+            // No existe: INSERT normal con sentencia preparada
+            $stmt = mysqli_prepare($conexion,
+                "INSERT INTO inventario (id_modelo, talla, color, stock_actual) VALUES (?, ?, ?, ?)");
+            // "issi" = integer, string, string, integer
+            mysqli_stmt_bind_param($stmt, "issi", $id_modelo, $inv['talla'], $inv['color'], $stock);
             mysqli_stmt_execute($stmt);
             mysqli_stmt_close($stmt);
+
             header("Location: index.php?msg=creado");
             exit;
         } catch (mysqli_sql_exception $e) {
