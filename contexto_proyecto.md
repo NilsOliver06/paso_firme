@@ -23,6 +23,7 @@ CREATE TABLE usuarios (
     correo VARCHAR(100) NOT NULL UNIQUE, -- Generado automáticamente: inicial_rol.ci@pasofirme.com
     password VARCHAR(255) NOT NULL,
     id_rol INT NOT NULL,
+    estado_activo TINYINT(1) NOT NULL DEFAULT 1, -- 1 = Activo, 0 = Inactivo (baja lógica)
     FOREIGN KEY (id_rol) REFERENCES roles(id_rol) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
@@ -127,9 +128,14 @@ CREATE TABLE configuracion (
 - Las ventas registradas son inmutables por políticas de auditoría (no se permite edición ni eliminación).
 - Al eliminar un cliente, su histórico de ventas se conserva gracias a la restricción `ON DELETE SET NULL`.
 
+### Baja Lógica de Usuarios
+- Para preservar la integridad referencial y auditoría histórica de ventas y arqueos de caja, los usuarios no se eliminan físicamente de la base de datos (`usuarios/eliminar.php`).
+- Se utiliza el campo `estado_activo` (`1 = Activo`, `0 = Inactivo`), permitiendo alternar el estado del usuario sin romper los comprobantes emitidos ni los turnos de caja registrados.
+- Un administrador no puede desactivar su propia cuenta en sesión activa.
+
 ## Estado de Sprints
 
 - **Sprint 1 (Completado):** Configuración de entorno, conexión a `paso_firme_db`, autenticación de usuarios (`login.php`, `auth.php`), control de sesiones y roles (`Administrador` y `Vendedor`).
 - **Sprint 2 (Completado):** Módulo de inventario con validaciones por talla y color, catálogo visual de modelos de calzado con CRUD, gestión de usuarios (`usuarios/`).
 - **Sprint 3 (Completado):** Control y arqueo de caja por turnos (`caja/`), punto de venta transaccional con control de stock y soporte para transferencias QR con comprobante configurable (`ventas/crear.php`), historial inmutable de ventas (`ventas/index.php`) y recibo formal imprimible (`ventas/recibo.php`).
-- **Sprint 4 (Completado):** CRUD completo de Clientes (`clientes/`), generación automática de correos institucionales en `usuarios/` a partir del CI y rol (`letra_inicial_del_rol.ci@pasofirme.com`), y rediseño integral del Dashboard (`index.php`) con estética minimalista estilo Nike (hero banner institucional, indicadores KPIs en tiempo real y tarjetas de acceso Bento con SVG).
+- **Sprint 4 (Completado):** CRUD completo de Clientes (`clientes/`), generación automática de correos institucionales en `usuarios/` a partir del CI y rol (`letra_inicial_del_rol.ci@pasofirme.com`), implementación de baja lógica de usuarios (`estado_activo`) para salvaguardar la auditoría, módulo gerencial de Balance General y Reportes (`reportes/index.php`) con resumen financiero imprimible en formato formal (KPIs, desglose efectivo/QR, arqueos de caja, top modelos vendidos, ventas detalladas por vendedor y alertas de reposición de stock bajo/agotado), y rediseño integral del Dashboard (`index.php`) con estética minimalista estilo Nike (hero banner institucional, indicadores KPIs en tiempo real y tarjetas de acceso Bento con SVG).

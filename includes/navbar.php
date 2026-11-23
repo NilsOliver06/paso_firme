@@ -105,6 +105,11 @@ $nav_rol    = $es_admin ? 'Administrador' : 'Vendedor';
                            class="block px-4 py-3 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-black transition">
                             Control de Caja
                         </a>
+
+                        <a href="/paso_firme/reportes/index.php"
+                           class="block px-4 py-3 text-sm text-neutral-700 hover:bg-neutral-100 hover:text-black transition">
+                            Reportes / Balance
+                        </a>
                     </div>
                 </div>
             </div>
