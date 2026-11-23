@@ -36,9 +36,10 @@ if ($correo === '' || $password === '') {
 
 // 6. Consulta preparada con INNER JOIN entre usuarios (u) y roles (r).
 //    - El JOIN une ambas tablas por id_rol para obtener nombre_rol.
+//    - También se consulta estado_activo para verificar baja lógica (1 = Activo, 0 = Inactivo).
 //    - El signo ? es un marcador: el dato del usuario NUNCA se pega al SQL,
 //      lo que evita la inyección SQL.
-$sql = "SELECT u.id_usuario, u.nombres, u.password, u.id_rol, r.nombre_rol
+$sql = "SELECT u.id_usuario, u.nombres, u.password, u.id_rol, u.estado_activo, r.nombre_rol
         FROM usuarios u
         INNER JOIN roles r ON u.id_rol = r.id_rol
         WHERE u.correo = ?
@@ -58,8 +59,9 @@ $id_usuario    = 0;
 $nombres       = '';
 $hash_guardado = '';
 $id_rol        = 0;
+$estado_activo = 1;
 $nombre_rol    = '';
-mysqli_stmt_bind_result($stmt, $id_usuario, $nombres, $hash_guardado, $id_rol, $nombre_rol);
+mysqli_stmt_bind_result($stmt, $id_usuario, $nombres, $hash_guardado, $id_rol, $estado_activo, $nombre_rol);
 
 // 11. Obtiene la fila. mysqli_stmt_fetch devuelve true si hubo un resultado
 //     (el correo existe) y llena las variables del paso anterior.
@@ -74,6 +76,12 @@ mysqli_stmt_close($stmt);
 //     - password_verify(): compara la contraseña escrita con el hash guardado
 //       en la BD (las contraseñas nunca se guardan en texto plano).
 if ($existe && !empty($hash_guardado) && password_verify($password, (string)$hash_guardado)) {
+
+    // 13.1 Verifica si la cuenta está dada de baja lógica (estado_activo == 0)
+    if ((int) $estado_activo === 0) {
+        header("Location: login.php?error=inactivo");
+        exit;
+    }
 
     // 14. Regenera el ID de sesión para evitar ataques de "fijación de sesión".
     session_regenerate_id(true);

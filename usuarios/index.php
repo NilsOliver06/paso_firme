@@ -27,11 +27,11 @@ require_once '../includes/conexion.php';
 
 /** @var mysqli $conexion */
 
-// 5. Consulta con JOIN: usuarios + nombre de su rol (incluye columna ci)
+// 5. Consulta con JOIN: usuarios + nombre de su rol (incluye ci y estado_activo)
 //    (nunca se selecciona la columna password)
 $usuarios = mysqli_fetch_all(
     mysqli_query($conexion,
-        "SELECT u.id_usuario, u.nombres, u.ci, u.correo, u.id_rol, r.nombre_rol
+        "SELECT u.id_usuario, u.nombres, u.ci, u.correo, u.id_rol, u.estado_activo, r.nombre_rol
          FROM usuarios u
          INNER JOIN roles r ON u.id_rol = r.id_rol
          ORDER BY u.nombres ASC"),
@@ -41,14 +41,15 @@ $total = count($usuarios);
 
 // 6. Mensajes de resultado enviados por las otras páginas (?msg= / ?error=)
 $mensajes = [
-    'creado'    => 'Usuario registrado correctamente.',
-    'editado'   => 'Usuario actualizado correctamente.',
-    'eliminado' => 'Usuario eliminado correctamente.',
+    'creado'             => 'Usuario registrado correctamente.',
+    'editado'            => 'Usuario actualizado correctamente.',
+    'eliminado'          => 'Usuario eliminado correctamente.',
+    'estado_actualizado' => 'El estado del usuario se actualizó correctamente.',
 ];
 $errores = [
     'llave_foranea'   => 'No se puede eliminar: el usuario tiene ventas o arqueos registrados.',
-    'propio_usuario'  => 'No puedes eliminar tu propia cuenta.',
-    'no_eliminado'    => 'No se pudo eliminar el usuario.',
+    'propio_usuario'  => 'No puedes desactivar tu propia cuenta.',
+    'no_eliminado'    => 'No se pudo actualizar el estado del usuario.',
 ];
 $msg = $mensajes[$_GET['msg'] ?? ''] ?? '';
 $err = $errores[$_GET['error'] ?? ''] ?? '';
@@ -100,18 +101,21 @@ $err = $errores[$_GET['error'] ?? ''] ?? '';
                         <th class="px-6 py-4 font-semibold">CI</th>
                         <th class="px-6 py-4 font-semibold">Correo Institucional</th>
                         <th class="px-6 py-4 font-semibold">Rol</th>
+                        <th class="px-6 py-4 font-semibold">Estado</th>
                         <th class="px-6 py-4 font-semibold text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-neutral-100">
                 <?php if ($total === 0): ?>
-                    <tr><td colspan="6" class="px-6 py-12 text-center text-neutral-400">No hay usuarios registrados.</td></tr>
+                    <tr><td colspan="7" class="px-6 py-12 text-center text-neutral-400">No hay usuarios registrados.</td></tr>
                 <?php endif; ?>
 
                 <?php foreach ($usuarios as $u):
-                    $id = (int) $u['id_usuario'];
-                    $es_yo = ($id === (int) $_SESSION['id']);
-                    $badge = ((int) $u['id_rol'] === 1) ? 'bg-black text-white' : 'bg-neutral-200 text-neutral-800';
+                    $id     = (int) $u['id_usuario'];
+                    $es_yo  = ($id === (int) $_SESSION['id']);
+                    $badge  = ((int) $u['id_rol'] === 1) ? 'bg-black text-white' : 'bg-neutral-200 text-neutral-800';
+                    $activo = ((int) ($u['estado_activo'] ?? 1) === 1);
+                    $badge_estado = $activo ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700';
                 ?>
                     <tr class="hover:bg-neutral-50 transition">
                         <td class="px-6 py-4 text-neutral-400 font-mono">#<?php echo $id; ?></td>
@@ -129,17 +133,30 @@ $err = $errores[$_GET['error'] ?? ''] ?? '';
                             </span>
                         </td>
                         <td class="px-6 py-4">
+                            <span class="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide <?php echo $badge_estado; ?>">
+                                <?php echo $activo ? 'ACTIVO' : 'INACTIVO'; ?>
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
                             <div class="flex justify-center gap-2">
                                 <a href="editar.php?id=<?php echo $id; ?>"
                                    class="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-neutral-100 hover:text-black transition">
                                     Editar
                                 </a>
                                 <?php if (!$es_yo): ?>
-                                    <a href="eliminar.php?id=<?php echo $id; ?>"
-                                       onclick="return confirmarEnlace(this, {titulo: 'Eliminar usuario', mensaje: '¿Seguro que deseas eliminar este usuario? Esta acción no se puede deshacer.', textoConfirmar: 'Eliminar', esPeligro: true});"
-                                       class="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-black hover:text-white hover:border-black transition">
-                                        Eliminar
-                                    </a>
+                                    <?php if ($activo): ?>
+                                        <a href="eliminar.php?id=<?php echo $id; ?>"
+                                           onclick="abrirModalConfirmacion({titulo: 'Desactivar usuario', mensaje: '¿Seguro que deseas desactivar a este usuario? No podrá iniciar sesión hasta que lo reactives, pero sus ventas y arqueos se conservarán.', textoConfirmar: 'Desactivar', esPeligro: true, onConfirmar: () => { window.location.href = this.href; }}); return false;"
+                                           class="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-red-600 hover:text-white hover:border-red-600 transition">
+                                            Desactivar
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="eliminar.php?id=<?php echo $id; ?>"
+                                           onclick="abrirModalConfirmacion({titulo: 'Reactivar usuario', mensaje: '¿Deseas reactivar la cuenta de este usuario para que pueda volver a iniciar sesión?', textoConfirmar: 'Reactivar', esPeligro: false, onConfirmar: () => { window.location.href = this.href; }}); return false;"
+                                           class="px-3 py-1.5 rounded-lg border border-neutral-300 text-xs font-semibold text-neutral-700 hover:bg-black hover:text-white hover:border-black transition">
+                                            Reactivar
+                                        </a>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </div>
                         </td>
