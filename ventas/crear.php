@@ -607,7 +607,7 @@ $clase_label = "block text-xs font-semibold uppercase tracking-wide text-neutral
 
         // Confirmación final antes de enviar la venta
         document.getElementById('form-venta').addEventListener('submit', function (e) {
-            if (!confirm('¿Confirmar la venta por ' + totalSpan.textContent + '?')) { e.preventDefault(); }
+            confirmarFormulario(this, e, {titulo: 'Confirmar venta', mensaje: '¿Confirmar la venta por ' + totalSpan.textContent + '?', textoConfirmar: 'Confirmar venta'});
         });
 
         dibujar();

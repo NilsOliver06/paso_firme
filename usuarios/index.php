@@ -136,7 +136,7 @@ $err = $errores[$_GET['error'] ?? ''] ?? '';
                                 </a>
                                 <?php if (!$es_yo): ?>
                                     <a href="eliminar.php?id=<?php echo $id; ?>"
-                                       onclick="return confirm('¿Seguro que deseas eliminar este usuario? Esta acción no se puede deshacer.');"
+                                       onclick="return confirmarEnlace(this, {titulo: 'Eliminar usuario', mensaje: '¿Seguro que deseas eliminar este usuario? Esta acción no se puede deshacer.', textoConfirmar: 'Eliminar', esPeligro: true});"
                                        class="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-black hover:text-white hover:border-black transition">
                                         Eliminar
                                     </a>

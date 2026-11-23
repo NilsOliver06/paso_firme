@@ -132,3 +132,85 @@ $nav_rol    = $es_admin ? 'Administrador' : 'Vendedor';
 
     </div>
 </header>
+
+
+<!-- ============================================================================
+     MODAL GLOBAL DE CONFIRMACIÓN (reemplaza al confirm() nativo del navegador)
+     Uso: abrirModalConfirmacion({ titulo, mensaje, textoConfirmar, esPeligro, onConfirmar })
+     ============================================================================ -->
+<div id="modal-confirmacion" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm print:hidden" role="dialog" aria-modal="true" aria-labelledby="modal-conf-titulo">
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 sm:p-8">
+        <h3 id="modal-conf-titulo" class="text-xl font-black uppercase tracking-tight text-neutral-900">Confirmar</h3>
+        <p id="modal-conf-mensaje" class="mt-3 text-sm text-neutral-600 whitespace-pre-line"></p>
+        <div class="mt-8 flex flex-col-reverse sm:flex-row gap-3">
+            <button type="button" id="modal-conf-cancelar"
+                    class="flex-1 px-6 py-3 rounded-full bg-neutral-100 text-neutral-700 text-sm font-semibold uppercase tracking-wide hover:bg-neutral-200 transition">
+                Cancelar
+            </button>
+            <button type="button" id="modal-conf-aceptar"
+                    class="flex-1 px-6 py-3 rounded-full text-white text-sm font-semibold uppercase tracking-wide transition bg-black hover:bg-neutral-800">
+                Confirmar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const modal    = document.getElementById('modal-confirmacion');
+        const titulo   = document.getElementById('modal-conf-titulo');
+        const mensaje  = document.getElementById('modal-conf-mensaje');
+        const btnOk    = document.getElementById('modal-conf-aceptar');
+        const btnNo    = document.getElementById('modal-conf-cancelar');
+        let callback   = null;
+
+        function cerrar() {
+            modal.classList.add('hidden');
+            callback = null;
+        }
+
+        window.abrirModalConfirmacion = function (opc) {
+            opc = opc || {};
+            titulo.textContent  = opc.titulo || 'Confirmar acción';
+            mensaje.textContent = opc.mensaje || '';
+            btnOk.textContent   = opc.textoConfirmar || 'Confirmar';
+            btnOk.className = 'flex-1 px-6 py-3 rounded-full text-white text-sm font-semibold uppercase tracking-wide transition ' +
+                (opc.esPeligro ? 'bg-red-600 hover:bg-red-700' : 'bg-black hover:bg-neutral-800');
+            callback = typeof opc.onConfirmar === 'function' ? opc.onConfirmar : null;
+            modal.classList.remove('hidden');
+            btnNo.focus();
+        };
+
+        // Para enlaces <a>: onclick="return confirmarEnlace(this, {...})"
+        window.confirmarEnlace = function (enlace, opc) {
+            opc = opc || {};
+            opc.onConfirmar = function () { window.location.href = enlace.href; };
+            window.abrirModalConfirmacion(opc);
+            return false;
+        };
+
+        // Para formularios: confirmarFormulario(form, e, {...}) dentro del evento submit
+        window.confirmarFormulario = function (form, e, opc) {
+            if (form.dataset.confirmado === '1') { return; }  // ya confirmado: dejar enviar
+            e.preventDefault();
+            const submitter = e.submitter || null;
+            opc = opc || {};
+            opc.onConfirmar = function () {
+                form.dataset.confirmado = '1';
+                if (form.requestSubmit) { form.requestSubmit(submitter); } else { form.submit(); }
+            };
+            window.abrirModalConfirmacion(opc);
+        };
+
+        btnOk.addEventListener('click', function () {
+            const cb = callback;
+            cerrar();
+            if (cb) { cb(); }
+        });
+        btnNo.addEventListener('click', cerrar);
+        modal.addEventListener('click', function (e) { if (e.target === modal) { cerrar(); } });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) { cerrar(); }
+        });
+    })();
+</script>

@@ -49,6 +49,16 @@ $resultado = mysqli_query($conexion, $sql);
 // 6. Convierte el resultado en un arreglo para recorrerlo con foreach
 $productos = mysqli_fetch_all($resultado, MYSQLI_ASSOC);
 $total = count($productos);
+
+// 7. Mensajes informativos tras registrar, sumar stock, reactivar, editar o eliminar (?msg=)
+$mensajes = [
+    'creado'       => 'Producto registrado correctamente en el inventario.',
+    'stock_sumado' => 'El producto ya existía: se sumó el stock al registro existente.',
+    'reactivado'   => 'El producto estaba dado de baja: fue reactivado con el nuevo stock ingresado.',
+    'editado'      => 'Producto actualizado correctamente.',
+    'eliminado'    => 'Producto eliminado correctamente.',
+];
+$msg = $mensajes[$_GET['msg'] ?? ''] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -84,6 +94,12 @@ $total = count($productos);
                 </a>
             <?php endif; ?>
         </div>
+
+        <?php if ($msg !== ''): ?>
+            <div class="mb-6 rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-800" role="alert">
+                <?php echo htmlspecialchars($msg); ?>
+            </div>
+        <?php endif; ?>
 
         <!-- Barra de búsqueda: input flexible + botón Limpiar -->
         <div class="flex flex-col sm:flex-row gap-3 mb-6">
@@ -154,7 +170,7 @@ $total = count($productos);
                                     </a>
                                     <!-- confirm(): si el usuario cancela devuelve false y no se sigue el enlace -->
                                     <a href="eliminar.php?id=<?php echo $id; ?>" title="Eliminar"
-                                       onclick="return confirm('¿Seguro que deseas eliminar este producto? Esta acción no se puede deshacer.');"
+                                       onclick="return confirmarEnlace(this, {titulo: 'Eliminar producto', mensaje: '¿Seguro que deseas eliminar este producto? Esta acción no se puede deshacer.', textoConfirmar: 'Eliminar', esPeligro: true});"
                                        class="px-3 py-1.5 rounded-lg border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-black hover:text-white hover:border-black transition">
                                         Eliminar
                                     </a>
