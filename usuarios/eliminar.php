@@ -1,9 +1,9 @@
 <?php
 // ==============================================================================
 // ARCHIVO: usuarios/eliminar.php
-// DESCRIPCIÓN: Elimina un usuario (sin HTML). Solo Administrador (rol 1).
-//              Si el usuario tiene ventas/arqueos, la llave foránea (ON DELETE
-//              RESTRICT) impide el borrado y se redirige con ?error=llave_foranea.
+// DESCRIPCIÓN: Baja lógica / reactivación de un usuario (sin HTML). Solo
+//              Administrador (rol 1). Invierte estado_activo (1 <-> 0) para
+//              preservar la auditoría de ventas y arqueos de caja.
 // ==============================================================================
 
 // 1. Sesión
@@ -35,25 +35,22 @@ if ($id === false || $id === null || $id <= 0) {
     exit;
 }
 
-// 6. Un administrador no puede eliminar su propia cuenta
-if ($id === (int) $_SESSION['id']) {
+// 6. Un administrador no puede desactivar su propia cuenta
+$id_sesion = (int) ($_SESSION['id_usuario'] ?? $_SESSION['id'] ?? 0);
+if ($id === $id_sesion) {
     header("Location: index.php?error=propio_usuario");
     exit;
 }
 
-// 7. DELETE preparado dentro de try-catch
+// 7. UPDATE preparado que invierte estado_activo (1 -> 0, 0 -> 1)
 try {
-    $stmt = mysqli_prepare($conexion, "DELETE FROM usuarios WHERE id_usuario = ?");
+    $stmt = mysqli_prepare($conexion,
+        "UPDATE usuarios SET estado_activo = IF(estado_activo = 1, 0, 1) WHERE id_usuario = ?");
     mysqli_stmt_bind_param($stmt, "i", $id);
     mysqli_stmt_execute($stmt);
     mysqli_stmt_close($stmt);
-    header("Location: index.php?msg=eliminado");
+    header("Location: index.php?msg=estado_actualizado");
 } catch (mysqli_sql_exception $e) {
-    // 1451 = no se puede borrar: hay filas hijas que referencian a este usuario
-    if ((int) $e->getCode() === 1451) {
-        header("Location: index.php?error=llave_foranea");
-    } else {
-        header("Location: index.php?error=no_eliminado");
-    }
+    header("Location: index.php?error=no_eliminado");
 }
 exit;

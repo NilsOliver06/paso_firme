@@ -8,13 +8,15 @@ if (isset($_SESSION['id_usuario'])) {
     exit;
 }
 
-// auth.php enviará ?error=1 (credenciales inválidas) o ?error=2 (campos vacíos) cuando algo falle
+// auth.php enviará ?error=1 (credenciales inválidas), ?error=2 (campos vacíos) o ?error=inactivo (cuenta dada de baja)
 $error = isset($_GET['error']) ? $_GET['error'] : '';
 $mensaje_error = '';
 if ($error === '1') {
     $mensaje_error = 'Correo o contraseña incorrectos.';
 } elseif ($error === '2') {
     $mensaje_error = 'Por favor completa todos los campos.';
+} elseif ($error === 'inactivo') {
+    $mensaje_error = 'Tu cuenta se encuentra inactiva. Contacta con el administrador.';
 }
 ?>
 <!DOCTYPE html>
